@@ -1,0 +1,197 @@
+{
+  "name": "CampusFlow Automation",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "campusflow-webhook",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        250,
+        300
+      ],
+      "webhookId": "campusflow-webhook-id"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.body.type }}",
+              "value2": "deadline"
+            }
+          ]
+        }
+      },
+      "id": "2",
+      "name": "IF Deadline or Notice",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        450,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "calendarId": "={{ $json.body.email }}",
+        "title": "={{ $json.body.title }}",
+        "start": "={{ $json.body.date }}",
+        "end": "={{ $json.body.date }}",
+        "additionalFields": {
+          "description": "={{ $json.body.description }}"
+        }
+      },
+      "id": "3",
+      "name": "Google Calendar",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1,
+      "position": [
+        700,
+        150
+      ],
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "1",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "message": "=Reminder: {{ $json.body.title }} on {{ $json.body.date }}\\nDetails: {{ $json.body.description }}",
+        "to": "={{ $json.body.phone }}",
+        "from": "whatsapp:+14155238886"
+      },
+      "id": "4",
+      "name": "Twilio WhatsApp (Deadline)",
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [
+        950,
+        150
+      ],
+      "credentials": {
+        "twilioApi": {
+          "id": "1",
+          "name": "Twilio account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "chat",
+        "model": "gpt-3.5-turbo",
+        "messages": {
+          "message": [
+            {
+              "role": "system",
+              "content": "You are a helpful assistant."
+            },
+            {
+              "role": "user",
+              "content": "=Summarize this notice in exactly 3 short bullet points:\\nTitle: {{ $json.body.title }}\\nDescription: {{ $json.body.description }}"
+            }
+          ]
+        }
+      },
+      "id": "5",
+      "name": "OpenAI Summary",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [
+        700,
+        450
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "1",
+          "name": "OpenAI Api Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "message": "=Notice Summary (${{ $node[\"Webhook\"].json.body.title }}):\\n{{ $json.choices[0].message.content }}",
+        "to": "={{ $node[\"Webhook\"].json.body.phone }}",
+        "from": "whatsapp:+14155238886"
+      },
+      "id": "6",
+      "name": "Twilio WhatsApp (Notice)",
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [
+        950,
+        450
+      ],
+      "credentials": {
+        "twilioApi": {
+          "id": "1",
+          "name": "Twilio account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "IF Deadline or Notice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Deadline or Notice": {
+      "main": [
+        [
+          {
+            "node": "Google Calendar",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "OpenAI Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Calendar": {
+      "main": [
+        [
+          {
+            "node": "Twilio WhatsApp (Deadline)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Summary": {
+      "main": [
+        [
+          {
+            "node": "Twilio WhatsApp (Notice)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {}
+}

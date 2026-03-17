@@ -1,0 +1,28 @@
+{
+  "name": "campusflow",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vishwaksen21/campusflow.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/vishwaksen21/campusflow/issues"
+  },
+  "homepage": "https://github.com/vishwaksen21/campusflow#readme",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.99.2",
+    "axios": "^1.13.6",
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1"
+  }
+}
