@@ -17,8 +17,8 @@ Here is the step-by-step flow of how the system operates:
 3. **Automation Routing (n8n):**
    * **n8n** receives the payload and triggers an **IF Node**.
 4. **Branch A (If `type == deadline`):**
-   * **Google Calendar Node** creates an event using the student's email and deadline date.
-   * **Twilio Node** sends a WhatsApp message notifying the student of the upcoming deadline.
+   * *(Optional)* **Google Calendar Node** creates an event using the student's email and deadline date.
+   * **Twilio WhatsApp** sends a WhatsApp message notifying the student of the upcoming deadline.
 5. **Branch B (If `type == notice`):**
    * **OpenAI Node** takes the long notice description and prompts the AI to generate exactly 3 short bullet points.
    * **Twilio Node** sends the summarized bullet points as a readable WhatsApp message to the student.
@@ -79,6 +79,7 @@ Here is the step-by-step flow of how the system operates:
    * Note the difference between the **Test URL** (used when building/executing manually) and the **Production URL** (used when workflow is active). 
    * Copy the URL you intend to use to your backend `.env` file as `N8N_WEBHOOK_URL`. Restart your node backend.
 4. Add Credentials for Google Calendar (using Client ID/Secret from Step 3), Twilio (using Account SID and Auth Token), and OpenAI.
+   *Note:* If your n8n Twilio node only supports `Call/SMS/Custom API Call`, send WhatsApp via an **HTTP Request** node calling Twilio's Messages API (documented in `N8N_SETUP.md`).
 5. **Activate** the workflow!
 
 ---

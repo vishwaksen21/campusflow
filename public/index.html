@@ -1,170 +1,264 @@
 <!DOCTYPE html>
+
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CampusFlow Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
-    </style>
 </head>
-<body class="p-8">
+<body class="min-h-screen bg-slate-50 text-slate-900">
 
-    <div class="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8">
-        
-        <!-- Registration Form -->
-        <div class="bg-white p-6 rounded-xl shadow-md border-t-4 border-blue-500">
-            <h2 class="text-2xl font-bold mb-4 text-gray-800">1. Register Student</h2>
-            <form id="registerForm" class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Name</label>
-                    <input type="text" id="regName" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500" placeholder="John Doe">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">WhatsApp Number</label>
-                    <input type="text" id="regPhone" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500" placeholder="whatsapp:+1234567890">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Gmail Address</label>
-                    <input type="email" id="regEmail" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border focus:ring-blue-500 focus:border-blue-500" placeholder="student@gmail.com">
-                </div>
-                <button type="submit" class="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded hover:bg-blue-700 transition">Register Student</button>
-            </form>
-            <div id="regStatus" class="mt-4 text-sm font-semibold hidden"></div>
+<header class="border-b bg-white">
+    <div class="mx-auto flex max-w-5xl items-center justify-between px-6 py-5">
+        <div>
+            <h1 class="text-xl font-semibold tracking-tight">CampusFlow</h1>
+            <p class="mt-1 text-sm text-slate-600">Register a student, then trigger a Deadline or Notice automation.</p>
         </div>
-
-        <!-- Task/Notice Form -->
-        <div class="bg-white p-6 rounded-xl shadow-md border-t-4 border-emerald-500">
-            <h2 class="text-2xl font-bold mb-4 text-gray-800">2. Submit to CampusFlow (n8n)</h2>
-            <form id="taskForm" class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Title</label>
-                    <input type="text" id="taskTitle" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border focus:ring-emerald-500 focus:border-emerald-500" placeholder="e.g. DBMS Assignment">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Message / Description</label>
-                    <textarea id="taskDesc" required rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border focus:ring-emerald-500 focus:border-emerald-500" placeholder="Enter assignment details or paste long notice here..."></textarea>
-                </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">Date/Time</label>
-                        <input type="datetime-local" id="taskDate" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">Type</label>
-                        <select id="taskType" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border bg-white">
-                            <option value="deadline">Deadline 📅</option>
-                            <option value="notice">Notice/Announcement 📢</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="grid grid-cols-2 gap-4 hidden">
-                    <!-- Hidden copy of user details to inject into task payload -->
-                    <input type="text" id="hiddenPhone">
-                    <input type="text" id="hiddenEmail">
-                </div>
-                <button type="submit" class="w-full bg-emerald-600 text-white font-bold py-2 px-4 rounded hover:bg-emerald-700 transition">Trigger Automation 🚀</button>
-            </form>
-            <div id="taskStatus" class="mt-4 text-sm font-semibold hidden"></div>
+        <div class="text-right">
+            <div class="text-xs font-medium text-slate-500">API</div>
+            <div id="apiBase" class="max-w-[18rem] truncate text-xs text-slate-700"></div>
         </div>
-
     </div>
+</header>
 
-    <script>
-        // Detect API base URL (local vs production)
-        const API_BASE_URL = window.location.hostname === 'localhost' 
-            ? 'http://localhost:3000' 
-            : window.location.origin.replace(/vercel\.app.*/, 'onrender.com') || 'http://localhost:3000';
-        
-        // 1. Handle Registration
-        document.getElementById('registerForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const btn = e.target.querySelector('button');
-            const status = document.getElementById('regStatus');
-            btn.innerText = 'Registering...';
-            
-            const payload = {
-                name: document.getElementById('regName').value,
-                phone: document.getElementById('regPhone').value,
-                email: document.getElementById('regEmail').value
-            };
+<main class="mx-auto max-w-5xl px-6 py-8">
 
-            try {
-                const res = await fetch(`${API_BASE_URL}/register`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                const data = await res.json();
-                
-                if (res.ok) {
-                    status.innerText = '✅ Success! Student saved to Supabase.';
-                    status.className = 'mt-4 text-sm font-semibold text-green-600 block';
-                    
-                    // Auto-fill hidden fields for task form to make demo smoother
-                    document.getElementById('hiddenPhone').value = payload.phone;
-                    document.getElementById('hiddenEmail').value = payload.email;
-                } else {
-                    status.innerText = '❌ Error: ' + (data.error || 'Check console');
-                    status.className = 'mt-4 text-sm font-semibold text-red-600 block';
-                }
-            } catch (err) {
-                status.innerText = '❌ Error connecting to server: ' + err.message;
-                status.className = 'mt-4 text-sm font-semibold text-red-600 block';
-            }
-            btn.innerText = 'Register Student';
+<div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+
+    <!-- Registration Form -->
+    <section class="rounded-xl border bg-white p-6">
+        <div class="flex items-start justify-between gap-4">
+            <div>
+                <h2 class="text-lg font-semibold">1) Register Student</h2>
+                <p class="mt-1 text-sm text-slate-600">Stores name, WhatsApp number, and email in Supabase.</p>
+            </div>
+        </div>
+        <form id="registerForm" class="mt-5 space-y-4">
+            <div>
+                <label class="text-sm font-medium text-slate-700">Name</label>
+                <input type="text" id="regName" required class="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-slate-400" placeholder="John Doe">
+            </div>
+            <div>
+                <label class="text-sm font-medium text-slate-700">WhatsApp Number</label>
+                <input type="text" id="regPhone" required class="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-slate-400" placeholder="+91XXXXXXXXXX">
+                <p class="mt-1 text-xs text-slate-500">Tip: include country code (e.g. +91...).</p>
+            </div>
+            <div>
+                <label class="text-sm font-medium text-slate-700">Email</label>
+                <input type="email" id="regEmail" required class="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-slate-400" placeholder="student@gmail.com">
+            </div>
+            <button id="registerBtn" type="submit" class="inline-flex w-full items-center justify-center rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60">Register</button>
+        </form>
+        <div id="regStatus" class="mt-4 text-sm"></div>
+    </section>
+
+<!-- Task Form -->
+<section class="rounded-xl border bg-white p-6">
+    <div>
+        <h2 class="text-lg font-semibold">2) Trigger Automation</h2>
+        <p class="mt-1 text-sm text-slate-600">Sends the task to your n8n webhook and triggers WhatsApp + AI flow.</p>
+    </div>
+    <form id="taskForm" class="mt-5 space-y-4">
+        <div>
+            <label class="text-sm font-medium text-slate-700">Title</label>
+            <input type="text" id="taskTitle" required placeholder="DBMS assignment" class="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-slate-400">
+        </div>
+        <div>
+            <label class="text-sm font-medium text-slate-700">Description</label>
+            <textarea id="taskDesc" required placeholder="What should the student do?" class="mt-1 min-h-[92px] w-full resize-none rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-slate-400"></textarea>
+        </div>
+        <div>
+            <label class="text-sm font-medium text-slate-700">Date & Time</label>
+            <input type="datetime-local" id="taskDate" required class="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-slate-400">
+        </div>
+        <div>
+            <label class="text-sm font-medium text-slate-700">Type</label>
+            <select id="taskType" class="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-slate-400">
+                <option value="deadline">Deadline</option>
+                <option value="notice">Notice</option>
+            </select>
+        </div>
+
+        <!-- hidden -->
+        <input type="hidden" id="hiddenPhone">
+        <input type="hidden" id="hiddenEmail">
+
+        <button id="triggerBtn" type="submit" class="inline-flex w-full items-center justify-center rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60">Trigger</button>
+    </form>
+    <div id="taskStatus" class="mt-4 text-sm"></div>
+</section>
+
+</div>
+
+</main>
+
+<script src="/config.js"></script>
+<script>
+
+function getApiBaseUrl() {
+    const qp = new URLSearchParams(window.location.search).get('api');
+    if (qp) return qp.replace(/\/+$/, '');
+
+    const configured = (window.CAMPUSFLOW_API_BASE_URL || '').trim().replace(/\/+$/, '');
+    if (configured) return configured;
+
+    // Local dev when frontend is served by backend.
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        return 'http://localhost:3000';
+    }
+
+    // Default: same origin (works when served by backend or Codespaces forwarded port).
+    return window.location.origin;
+}
+
+const API_BASE_URL = getApiBaseUrl();
+document.getElementById('apiBase').textContent = API_BASE_URL;
+
+// 🔥 FORMAT PHONE FUNCTION (IMPORTANT)
+function formatPhone(phone) {
+    phone = phone.replace(/\s+/g, '');
+
+    if (phone.startsWith('whatsapp:')) return phone;
+    if (phone.startsWith('+')) return `whatsapp:${phone}`;
+    
+    return `whatsapp:+91${phone}`;
+}
+
+// REGISTER
+document.getElementById('registerForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    console.log('📝 Register button clicked');
+
+    const phone = formatPhone(document.getElementById('regPhone').value);
+    console.log('📱 Formatted phone:', phone);
+
+    const payload = {
+        name: document.getElementById('regName').value,
+        phone: phone,
+        email: document.getElementById('regEmail').value
+    };
+
+    console.log('📦 Sending payload:', payload);
+
+    const toErrorText = (value) => {
+        if (value == null) return 'Unknown error';
+        if (typeof value === 'string') return value;
+        if (typeof value === 'object') {
+            return value.message || value.error || value.hint || JSON.stringify(value);
+        }
+        return String(value);
+    };
+
+    const status = document.getElementById('regStatus');
+    const btn = document.getElementById('registerBtn');
+
+    status.textContent = '';
+    status.className = 'mt-4 text-sm';
+    btn.disabled = true;
+    btn.textContent = 'Registering...';
+
+    try {
+        const res = await fetch(`${API_BASE_URL}/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
         });
+        const rawText = await res.text();
+        let data = {};
+        try { data = rawText ? JSON.parse(rawText) : {}; } catch { data = { raw: rawText }; }
 
-        // 2. Handle Task/Notice Submission
-        document.getElementById('taskForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const btn = e.target.querySelector('button');
-            const status = document.getElementById('taskStatus');
-            
-            const phone = document.getElementById('hiddenPhone').value || document.getElementById('regPhone').value;
-            const email = document.getElementById('hiddenEmail').value || document.getElementById('regEmail').value;
+        if (res.ok) {
+            status.textContent = (data.message ? `Registered: ${data.message}` : 'Registered successfully.');
+            status.className = "mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900";
 
-            if (!phone || !email) {
-                alert("Please register a student first to get the phone and email context!");
-                return;
-            }
+            document.getElementById('hiddenPhone').value = phone;
+            document.getElementById('hiddenEmail').value = payload.email;
 
-            btn.innerText = 'Triggering n8n Workflow...';
-            
-            // Format datetime for n8n/Calendar
-            const rawDate = document.getElementById('taskDate').value;
-            const isoDate = new Date(rawDate).toISOString();
+        } else {
+            status.textContent = "Registration failed: " + toErrorText(data.error || data);
+            status.className = "mt-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-900";
+        }
+    } catch (error) {
+        console.error('❌ Error:', error);
+        status.textContent = "Registration error: " + error.message;
+        status.className = "mt-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-900";
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Register';
+    }
+});
 
-            const payload = {
-                title: document.getElementById('taskTitle').value,
-                description: document.getElementById('taskDesc').value,
-                date: isoDate,
-                type: document.getElementById('taskType').value,
-                phone: phone,
-                email: email
-            };
+// TASK
+document.getElementById('taskForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    console.log('🚀 Task button clicked');
 
-            try {
-                const res = await fetch(`${API_BASE_URL}/add-task`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                
-                if (res.ok) {
-                    status.innerText = '✅ Sent! Check WhatsApp, Calendar, and n8n Logs.';
-                    status.className = 'mt-4 text-sm font-semibold text-green-600 block';
-                } else {
-                    status.innerText = '❌ Failed to reach backend/n8n.';
-                    status.className = 'mt-4 text-sm font-semibold text-red-600 block';
-                }
-            } catch (err) {
-                status.innerText = '❌ Error connecting to server: ' + err.message;
-                status.className = 'mt-4 text-sm font-semibold text-red-600 block';
-            }
-            btn.innerText = 'Trigger Automation 🚀';
+    const toErrorText = (value) => {
+        if (value == null) return 'Unknown error';
+        if (typeof value === 'string') return value;
+        if (typeof value === 'object') {
+            return value.message || value.error || value.hint || JSON.stringify(value);
+        }
+        return String(value);
+    };
+
+    const status = document.getElementById('taskStatus');
+    const btn = document.getElementById('triggerBtn');
+
+    const phone = document.getElementById('hiddenPhone').value;
+    const email = document.getElementById('hiddenEmail').value;
+
+    if (!phone || !email) {
+        status.textContent = "Please register first.";
+        status.className = "mt-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-900";
+        return;
+    }
+
+    const payload = {
+        title: document.getElementById('taskTitle').value,
+        description: document.getElementById('taskDesc').value,
+        date: new Date(document.getElementById('taskDate').value).toISOString(),
+        type: document.getElementById('taskType').value,
+        phone: phone,
+        email: email
+    };
+
+    console.log('📦 Sending task payload:', payload);
+
+    status.textContent = '';
+    status.className = 'mt-4 text-sm';
+    btn.disabled = true;
+    btn.textContent = 'Triggering...';
+
+    try {
+        const res = await fetch(`${API_BASE_URL}/add-task`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
         });
-    </script>
+        const rawText = await res.text();
+        let data = {};
+        try { data = rawText ? JSON.parse(rawText) : {}; } catch { data = { raw: rawText }; }
+
+        if (res.ok) {
+            status.textContent = "Triggered successfully. Check WhatsApp.";
+            status.className = "mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900";
+        } else {
+            status.textContent = "Trigger failed: " + toErrorText(data.error || data);
+            status.className = "mt-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-900";
+        }
+    } catch (error) {
+        console.error('❌ Error:', error);
+        status.textContent = "Trigger error: " + error.message;
+        status.className = "mt-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-900";
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Trigger';
+    }
+});
+
+</script>
+
 </body>
 </html>

@@ -6,21 +6,14 @@ Follow this to deploy your CampusFlow dashboard live on Vercel.
 
 ## ✅ Step 1: Update Frontend for Production
 
-Your frontend (`public/index.html`) currently connects to `http://localhost:3000`. We need to make it work with your live backend.
+Your frontend is static, and your backend will be on Render. To make Vercel call Render, set the backend base URL in `public/config.js`.
 
-Update the API calls in `public/index.html`:
-
-Change:
-```javascript
-const res = await fetch('/register', {
+1. Open `public/config.js`
+2. Set:
+```js
+window.CAMPUSFLOW_API_BASE_URL = 'https://your-backend-url.onrender.com';
 ```
-
-To:
-```javascript
-const res = await fetch('https://your-backend-url.onrender.com/register', {
-```
-
-*(Replace `your-backend-url` with your actual Render URL from the previous step)*
+3. Commit + push. Vercel will redeploy automatically.
 
 ---
 
@@ -74,36 +67,9 @@ https://campusflow-vXXXXXX.vercel.app
 
 ---
 
-## ⚠️ Important: Update API Calls
+## ⚠️ Important
 
-Before Vercel deployment, you MUST update your frontend to point to your live backend!
-
-### Open `public/index.html`
-
-Find these lines (around line 50 and 85):
-```javascript
-const res = await fetch('/register', {
-```
-
-Replace with:
-```javascript
-const res = await fetch('https://campusflow-backend.onrender.com/register', {
-```
-
-*(Use your actual Render URL)*
-
-Do this for BOTH:
-- `fetch('/register', ...)`
-- `fetch('/add-task', ...)`
-
-Then push again:
-```bash
-git add public/index.html
-git commit -m "Point frontend to production backend"
-git push origin main
-```
-
-Vercel will auto-redeploy!
+If you do NOT set `window.CAMPUSFLOW_API_BASE_URL` in `public/config.js`, the frontend will default to same-origin and your API calls will fail on Vercel.
 
 ---
 

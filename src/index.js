@@ -7,90 +7,176 @@ const { createClient } = require('@supabase/supabase-js');
 const app = express();
 app.use(cors());
 app.use(express.json());
-app.use(express.static('public')); // Serve the frontend UI
+app.use(express.static('public'));
 
+// ENV VARIABLES
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
 const N8N_WEBHOOK_URL = process.env.N8N_WEBHOOK_URL;
 
 if (!SUPABASE_URL || !SUPABASE_KEY || !N8N_WEBHOOK_URL) {
-    console.warn("⚠️ Missing Environment Variables. Please set SUPABASE_URL, SUPABASE_KEY, and N8N_WEBHOOK_URL.");
+    console.warn("⚠️ Missing ENV variables. Check SUPABASE_URL, SUPABASE_KEY, N8N_WEBHOOK_URL");
 }
 
-const supabase = SUPABASE_URL && SUPABASE_KEY ? createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+// Initialize Supabase
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// Health Check
-app.get('/health', (req, res) => res.json({ status: 'ok', time: new Date() }));
+function normalizePhone(input) {
+    if (typeof input !== 'string') return '';
+    const trimmed = input.trim();
+    const noWhatsapp = trimmed.replace(/^whatsapp:/i, '');
+    // Expect E.164-ish like +9186..., but don't over-correct here.
+    return noWhatsapp;
+}
 
-// Register User
+function toWhatsAppNumber(e164) {
+    if (!e164) return '';
+    return e164.toLowerCase().startsWith('whatsapp:') ? e164 : `whatsapp:${e164}`;
+}
+
+
+// =========================
+// HEALTH CHECK
+// =========================
+app.get('/health', (req, res) => {
+    res.json({ status: 'ok', time: new Date() });
+});
+
+
+// =========================
+// REGISTER USER
+// =========================
 app.post('/register', async (req, res) => {
     try {
         const { name, phone, email } = req.body;
-        
-        if (!name || !phone || !email) {
-            return res.status(400).json({ error: 'Missing required fields: name, phone, email' });
-        }
 
-        if (!supabase) {
-             return res.status(500).json({ error: 'Supabase client not initialized' });
+        const normalizedPhone = normalizePhone(phone);
+
+        if (!name || !normalizedPhone || !email) {
+            return res.status(400).json({
+                error: 'Missing required fields: name, phone, email'
+            });
         }
 
         const { data, error } = await supabase
             .from('users')
-            .insert([{ name, phone, email }])
+            .insert([{ name, phone: normalizedPhone, email }])
             .select();
 
         if (error) {
-            console.error('Supabase Error:', error);
+            console.error('❌ Supabase Error:', error);
             return res.status(400).json({ error: error.message });
         }
 
-        res.status(201).json({ message: 'User registered successfully', user: data[0] });
+        res.status(201).json({
+            message: 'User registered successfully',
+            user: data[0]
+        });
 
-    } catch (error) {
-        console.error('Registration Error:', error);
+    } catch (err) {
+        console.error('❌ Registration Error:', err);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
 
-// Add Task / Notice
+
+// =========================
+// ADD TASK / NOTICE
+// =========================
 app.post('/add-task', async (req, res) => {
     try {
         const { title, description, date, phone, email, type, priority } = req.body;
 
-        if (!title || !description || !date || !phone || !email || !type) {
+        const normalizedPhone = normalizePhone(phone);
+        const whatsappPhone = toWhatsAppNumber(normalizedPhone);
+
+        // Validation
+        if (!title || !description || !date || !normalizedPhone || !email || !type) {
             return res.status(400).json({ error: 'Missing required fields' });
         }
 
-        if (type !== 'deadline' && type !== 'notice') {
-            return res.status(400).json({ error: 'Type must be "deadline" or "notice"' });
+        if (!['deadline', 'notice'].includes(type)) {
+            return res.status(400).json({
+                error: 'Type must be "deadline" or "notice"'
+            });
         }
 
+        // Payload for n8n
         const payload = {
             title,
             description,
             date,
-            phone,
+            phone: normalizedPhone,      // +91XXXXXXXXXX (no whatsapp: prefix)
+            whatsapp: whatsappPhone,     // whatsapp:+91XXXXXXXXXX
             email,
             type,
             priority: priority || 'normal'
         };
 
-        // Trigger n8n Webhook
+        if (!N8N_WEBHOOK_URL) {
+            return res.status(500).json({
+                error: 'N8N_WEBHOOK_URL is not set on the backend'
+            });
+        }
+
+        // DEBUG LOGS
+        console.log('🚀 Sending to n8n webhook:', N8N_WEBHOOK_URL);
+        console.log('📦 Payload:', payload);
+
+        // CALL n8n WEBHOOK
         const n8nResponse = await axios.post(N8N_WEBHOOK_URL, payload);
 
-        res.status(200).json({ 
-            message: 'Task created and sent to automation workflow', 
-            n8nResponse: n8nResponse.data 
+        res.status(200).json({
+            message: 'Task sent to automation workflow successfully',
+            data: n8nResponse.data
         });
 
     } catch (error) {
-        console.error('Task Addition Error:', error.message);
-        res.status(500).json({ error: 'Failed to process task' });
+        const isProd = process.env.NODE_ENV === 'production';
+        const status = error.response?.status || 500;
+        const details = error.response?.data;
+
+        const extractMessage = (value) => {
+            if (!value) return '';
+            if (typeof value === 'string') return value;
+            if (typeof value === 'object') {
+                const direct = value.message || value.error || value.hint;
+                if (typeof direct === 'string') return direct;
+            }
+            return '';
+        };
+
+        const messageParts = [];
+        const top = extractMessage(details) || error.message || 'Unknown error';
+        messageParts.push(top);
+
+        if (details && typeof details === 'object') {
+            const hint = extractMessage(details.hint);
+            const nested = extractMessage(details.details) || extractMessage(details.error) || extractMessage(details.cause);
+            const nestedHint = extractMessage(details.details?.hint) || extractMessage(details.error?.hint) || extractMessage(details.cause?.hint);
+
+            if (nested && nested !== top) messageParts.push(nested);
+            if (nestedHint) messageParts.push(nestedHint);
+            if (hint && !messageParts.includes(hint)) messageParts.push(hint);
+        }
+
+        const message = messageParts.filter(Boolean).join(' — ');
+
+        console.error('❌ n8n call failed:', { status, message, details });
+
+        res.status(status >= 400 && status < 600 ? status : 500).json({
+            error: message,
+            ...(isProd ? {} : { details })
+        });
     }
 });
 
+
+// =========================
+// START SERVER
+// =========================
 const PORT = process.env.PORT || 3000;
+
 app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
+    console.log(`🚀 Server running on http://localhost:${PORT}`);
 });

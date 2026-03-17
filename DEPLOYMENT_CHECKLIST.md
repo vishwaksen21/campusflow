@@ -9,11 +9,11 @@ Follow this checklist to go from local to **fully deployed, production-ready sys
 - [ ] Read `N8N_SETUP.md`
 - [ ] Get Twilio Account SID & Auth Token
 - [ ] Join Twilio WhatsApp Sandbox
-- [ ] Configure Twilio node in n8n
+- [ ] Configure Twilio WhatsApp sending in n8n (HTTP Request node to Twilio Messages API)
 - [ ] Create Google Cloud project
 - [ ] Enable Google Calendar API
 - [ ] Create OAuth Client ID
-- [ ] Configure Google Calendar node in n8n
+- [ ] (Optional) Configure Google Calendar node in n8n
 - [ ] Get OpenAI API key (or Groq)
 - [ ] Configure AI node in n8n
 - [ ] **Activate** your n8n workflow
@@ -21,7 +21,7 @@ Follow this checklist to go from local to **fully deployed, production-ready sys
 - [ ] Test full workflow locally:
   - [ ] Register student → ✅ saved in Supabase
   - [ ] Add deadline → ✅ WhatsApp received
-  - [ ] Check Google Calendar → ✅ event created
+  - [ ] (Optional) Check Google Calendar → ✅ event created
   - [ ] Add notice → ✅ AI summary sent
 
 ---

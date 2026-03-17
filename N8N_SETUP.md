@@ -16,19 +16,35 @@ Follow this step-by-step to fully configure your CampusFlow n8n workflow.
 
 ### Configure in n8n:
 1. Open your n8n workflow (http://localhost:5678)
-2. Double-click the **Twilio Node** (for Deadline)
-3. Click **"Create new"** under Credentials
-4. Paste your **Account SID** and **Auth Token**
-5. Set:
-   - **From:** `whatsapp:+14155238886` (the Twilio Sandbox number)
-   - **To:** `{{ $json.phone }}` (dynamic - will use the user's number from the request)
-   - **Message:** `Reminder: {{ $json.title }} on {{ $json.date }}`
+2. IMPORTANT: In some n8n versions, the built-in **Twilio** node only supports **Call** and **SMS** (no WhatsApp). If your Twilio node dropdown shows only `Call`, `SMS`, `Custom API Call`, you must use an **HTTP Request** node to call Twilio's Messages API (this works for WhatsApp Sandbox).
 
-6. Do the same for the **second Twilio Node** (for Notice/AI summary)
+### ✅ Recommended: HTTP Request node (Twilio WhatsApp)
+
+Create one HTTP Request node for **Deadline** and one for **Notice**.
+
+**HTTP Request node settings**
+- **Method:** `POST`
+- **URL:** `https://api.twilio.com/2010-04-01/Accounts/<YOUR_ACCOUNT_SID>/Messages.json`
+- **Authentication:** `Generic Credential Type` → `Basic Auth`
+   - **Username:** `<YOUR_ACCOUNT_SID>` (starts with `AC...`)
+   - **Password:** `<YOUR_AUTH_TOKEN>`
+- **Send Body:** ON
+- **Body Content Type:** `Form Urlencoded`
+- **Body Fields:**
+   - `From` = `whatsapp:+14155238886`
+   - `To` = `{{ $json.body.whatsapp }}`
+      - fallback: `{{ 'whatsapp:' + $json.body.phone }}`
+   - `Body` = your message text
+
+**Deadline example Body**
+`Reminder: {{ $json.body.title }}\nDate: {{ $json.body.date }}\nDetails: {{ $json.body.description }}`
+
+**Notice example Body**
+`Notice Summary ({{ $node["Webhook"].json.body.title }}):\n{{ $json.choices[0].message.content }}`
 
 ---
 
-## ✅ 2. Google Calendar OAuth Setup
+## ✅ 2. Google Calendar OAuth Setup (Optional)
 
 ### Create OAuth Credentials:
 1. Go to [Google Cloud Console](https://console.cloud.google.com)
@@ -101,7 +117,7 @@ Follow this step-by-step to fully configure your CampusFlow n8n workflow.
    - Date: Any future date
    - Type: "deadline"
 4. **Check your phone** - You should receive a WhatsApp message within 5-10 seconds ✅
-5. **Check Google Calendar** - The event should appear ✅
+5. *(Optional)* **Check Google Calendar** - the event should appear ✅
 6. Submit a **Notice** task:
    - Title: "Campus WiFi Maintenance"
    - Description: "The campus WiFi will be down Friday 2-4 AM for maintenance. Please save your work."
